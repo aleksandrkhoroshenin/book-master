@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	_ "github.com/lib/pq"
 	"log"
 	"net/http"
 	"time"
@@ -19,7 +20,7 @@ const (
 var (
 	booksService     books.HandlerBooks
 	transportService transport.Router
-	securityService   security.Security
+	securityService  security.Security
 )
 
 var initFlag = flag.Bool("initial start", false, "Check your service")
@@ -28,13 +29,20 @@ var httpAddr = flag.String("http.addr", ":8080", "HTTP listen address")
 func main() {
 	flag.Parse()
 
-	db, err := sql.Open("postgres",
-		"postgresql://booksDB@localhost:5432/db_1?sslmode=disable&user=postgres&password=Aebnm")
+	dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable",
+		"postgres", "Aebnm", "db_1")
+	db, err := sql.Open("postgres", dbInfo)
 	if err != nil {
+		log.Fatal(err)
 		return
 	}
 
+	defer db.Close()
 	initService(db)
+
+	if *initFlag {
+		return
+	}
 
 	mux := http.NewServeMux()
 

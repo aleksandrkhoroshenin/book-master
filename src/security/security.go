@@ -14,9 +14,9 @@ type service struct {
 	Sm *SessionManager
 }
 
-func CreateInstance(sm * SessionManager) Security {
+func CreateInstance(sm *SessionManager) Security {
 	return &service{
-		Sm:sm,
+		Sm: sm,
 	}
 }
 
@@ -38,7 +38,7 @@ func (s *service) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionId, err := s.Sm.Create(&Session{
-		Login: cookieUserName.Value,
+		Login:    cookieUserName.Value,
 		Password: cookiePassword.Value,
 	})
 
@@ -53,7 +53,8 @@ func (s *service) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &cookie)
-	//http.Redirect(w, r, "/", http.StatusFound)
+	w.Header().Set("session_id", sessionId.ID)
+	http.Redirect(w, r, "/book", http.StatusFound)
 }
 
 func (s *service) CheckSession(r *http.Request) (*Session, error) {
@@ -69,5 +70,3 @@ func (s *service) CheckSession(r *http.Request) (*Session, error) {
 	})
 	return session, nil
 }
-
-

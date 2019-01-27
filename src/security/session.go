@@ -13,22 +13,22 @@ type SessionHandler interface {
 }
 
 type Session struct {
-	Login     string
+	Login    string
 	Password string
 }
 
 type SessionID struct {
-	ID string
+	ID string `json:"session_id"`
 }
 
 type SessionManager struct {
-	mu sync.RWMutex
+	mu       sync.RWMutex
 	sessions map[SessionID]*Session
 }
 
 func NewSessionManager() *SessionManager {
 	return &SessionManager{
-		mu: sync.RWMutex{},
+		mu:       sync.RWMutex{},
 		sessions: map[SessionID]*Session{},
 	}
 }
@@ -55,7 +55,6 @@ func (sm *SessionManager) Delete(in *SessionID) {
 	defer sm.mu.Unlock()
 	delete(sm.sessions, *in)
 }
-
 
 func GenerateUUID() (uuid string) {
 	b := make([]byte, 16)
