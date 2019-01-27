@@ -55,15 +55,7 @@ func (s *server) Get(w http.ResponseWriter, req *http.Request) {
 }
 
 func (handler *server) Handle(w http.ResponseWriter, req *http.Request) {
-	cookieSessionID, err := req.Cookie("session_id")
-	if err == http.ErrNoCookie {
-		return
-	} else if err != nil {
-		return
-	}
-	if handler.Sm.Check(&security.SessionID{ID: cookieSessionID.Value}) == nil {
-		return
-	}
+
 	switch req.Method {
 	case http.MethodGet:
 		handler.Get(w, req)

@@ -12,3 +12,8 @@ create table users (
   email varchar(50) not null unique,
   password varchar(50) not null
 );
+
+create table session (
+  id uuid primary key,
+  user_id uuid not null unique
+);

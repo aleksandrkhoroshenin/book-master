@@ -7,7 +7,8 @@ import (
 
 type Security interface {
 	Login(w http.ResponseWriter, r *http.Request)
-	CheckSession(r *http.Request) (*Session, error)
+	//CheckSession(r *http.Request) (*Session, error)
+	CheckSession(h http.Handler) http.Handler
 }
 
 type service struct {
@@ -25,15 +26,19 @@ func (s *service) Login(w http.ResponseWriter, r *http.Request) {
 
 	cookieUserName, err := r.Cookie("username")
 	if err == http.ErrNoCookie {
+		http.Error(w, "Access denied, username is not found", http.StatusUnauthorized)
 		return
 	} else if err != nil {
+		http.Error(w, "Access denied, username is not found", http.StatusUnauthorized)
 		return
 	}
 
 	cookiePassword, err := r.Cookie("password")
 	if err == http.ErrNoCookie {
+		http.Error(w, "Access denied, password is not found", http.StatusUnauthorized)
 		return
 	} else if err != nil {
+		http.Error(w, "Access denied, password is not found", http.StatusUnauthorized)
 		return
 	}
 
@@ -43,6 +48,7 @@ func (s *service) Login(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
@@ -57,16 +63,34 @@ func (s *service) Login(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/book", http.StatusFound)
 }
 
-func (s *service) CheckSession(r *http.Request) (*Session, error) {
-	cookieSessionID, err := r.Cookie("session_id")
-	if err == http.ErrNoCookie {
-		return nil, nil
-	} else if err != nil {
-		return nil, err
-	}
+//func (s *service) CheckSession(r *http.Request) (*Session, error) {
+//	cookieSessionID, err := r.Cookie("session_id")
+//	if err == http.ErrNoCookie {
+//		return nil, nil
+//	} else if err != nil {
+//		return nil, err
+//	}
+//
+//	session := s.Sm.Check(&SessionID{
+//		ID: cookieSessionID.Value,
+//	})
+//	return session, nil
+//}
 
-	session := s.Sm.Check(&SessionID{
-		ID: cookieSessionID.Value,
+func (s *service) CheckSession(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookieSessionID, err := r.Cookie("session_id")
+		if err == http.ErrNoCookie {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		} else if err != nil {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		if s.Sm.Check(&SessionID{ID: cookieSessionID.Value}) == nil {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		h.ServeHTTP(w, r)
 	})
-	return session, nil
 }

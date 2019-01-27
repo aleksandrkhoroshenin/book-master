@@ -21,6 +21,7 @@ type SessionID struct {
 	ID string `json:"session_id"`
 }
 
+// TODO::Redis
 type SessionManager struct {
 	mu       sync.RWMutex
 	sessions map[SessionID]*Session

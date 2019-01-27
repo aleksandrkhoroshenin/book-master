@@ -50,7 +50,8 @@ func main() {
 	mux.HandleFunc("/book", transportService.Handle)
 	mux.HandleFunc("/book/:uuid", transportService.Handle)
 
-	handler := AccessLogMiddleware(mux)
+	handler := securityService.CheckSession(mux)
+	handler = AccessLogMiddleware(mux)
 
 	s := &http.Server{
 		Addr:           *httpAddr,
