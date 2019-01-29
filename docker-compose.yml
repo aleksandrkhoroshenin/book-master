@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  books-api:
+    build:
+      context: .
+      args:
+        - VER=1.2
+    ports:
+      - 8080:8080
