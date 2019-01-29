@@ -1,69 +1,66 @@
 package security
 
 import (
-	"fmt"
-	"math/rand"
-	"sync"
+	"../users"
+	"../utils"
+	"database/sql"
 )
 
+// Обработчик сессий
 type SessionHandler interface {
-	Create(in *Session) (*SessionID, error)
-	Check(in *SessionID) *Session
+	Create(user *users.User, in *Session) (*SessionID, error)
+	Check(in *SessionID) (bool, error)
 	Delete(in *SessionID)
 }
 
+// Описание сессии
 type Session struct {
 	Login    string
 	Password string
 }
 
+// id сессии
 type SessionID struct {
 	ID string `json:"session_id"`
 }
 
 // TODO::Redis
 type SessionManager struct {
-	mu       sync.RWMutex
-	sessions map[SessionID]*Session
+	db *sql.DB
 }
 
-func NewSessionManager() *SessionManager {
+func NewSessionManager(db *sql.DB) *SessionManager {
 	return &SessionManager{
-		mu:       sync.RWMutex{},
-		sessions: map[SessionID]*Session{},
+		db: db,
 	}
 }
 
-func (sm *SessionManager) Create(in *Session) (*SessionID, error) {
-	sm.mu.Lock()
-	id := SessionID{GenerateUUID()}
-	sm.mu.Unlock()
-	sm.sessions[id] = in
-	return &id, nil
+func (sm *SessionManager) Create(user *users.User, in *Session) (*SessionID, error) {
+	session := SessionID{utils.GenerateUUID()}
+	err := sm.putSession(session.ID, user.Id)
+	return &session, err
 }
 
-func (sm *SessionManager) Check(in *SessionID) *Session {
-	sm.mu.RLock()
-	defer sm.mu.RUnlock()
-	if sess, ok := sm.sessions[*in]; ok {
-		return sess
-	}
-	return nil
+func (sm *SessionManager) putSession(id, user_id string) error {
+	_, err := sm.db.Exec("insert into session(id, user_id) values($1, $2)", id, user_id)
+	return err
 }
 
-func (sm *SessionManager) Delete(in *SessionID) {
-	sm.mu.Lock()
-	defer sm.mu.Unlock()
-	delete(sm.sessions, *in)
+func (sm *SessionManager) getSession(idIn string) (int, error) {
+	var count int
+	err := sm.db.QueryRow("select count(*) from session where id = $1", idIn).Scan(&count)
+	return count, err
 }
 
-func GenerateUUID() (uuid string) {
-	b := make([]byte, 16)
-	_, err := rand.Read(b)
+func (sm *SessionManager) Check(sessionId *SessionID) (bool, error) {
+	count, err := sm.getSession(sessionId.ID)
 	if err != nil {
-		fmt.Println("Error: ", err)
-		return
+		return false, err
 	}
-	uuid = fmt.Sprintf("%X-%X-%X-%X-%X", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
-	return
+	return count > 0, err
+}
+
+// TODO:: удаление сессий
+func (sm *SessionManager) Delete(in *SessionID) {
+
 }

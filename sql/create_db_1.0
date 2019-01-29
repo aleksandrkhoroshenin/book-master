@@ -9,7 +9,7 @@ CREATE TABLE books (
 
 create table users (
   id uuid primary key,
-  email varchar(50) not null unique,
+  login varchar(50) not null unique,
   password varchar(50) not null
 );
 

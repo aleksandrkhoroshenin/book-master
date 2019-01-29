@@ -1,23 +1,33 @@
 package security
 
 import (
+	"../users"
+	"../utils"
+	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 )
 
 type Security interface {
 	Login(w http.ResponseWriter, r *http.Request)
-	//CheckSession(r *http.Request) (*Session, error)
-	CheckSession(h http.Handler) http.Handler
+	CheckSession(h http.HandlerFunc) http.HandlerFunc
 }
 
 type service struct {
-	Sm *SessionManager
+	Sm    *SessionManager
+	Users users.UserHandler
 }
 
-func CreateInstance(sm *SessionManager) Security {
+type LoginResponse struct {
+	Message string `json:"message"`
+	Error   error  `json:"error"`
+}
+
+func CreateInstance(sm *SessionManager, user users.UserHandler) Security {
 	return &service{
-		Sm: sm,
+		Sm:    sm,
+		Users: user,
 	}
 }
 
@@ -29,7 +39,7 @@ func (s *service) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Access denied, username is not found", http.StatusUnauthorized)
 		return
 	} else if err != nil {
-		http.Error(w, "Access denied, username is not found", http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -38,11 +48,30 @@ func (s *service) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Access denied, password is not found", http.StatusUnauthorized)
 		return
 	} else if err != nil {
-		http.Error(w, "Access denied, password is not found", http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	sessionId, err := s.Sm.Create(&Session{
+	user := &users.User{
+		Id:       utils.GenerateUUID(),
+		Login:    cookieUserName.Value,
+		Password: cookiePassword.Value,
+	}
+	err = s.Users.PutUser(user)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	sessionUser, err := s.Users.GetUser(user.Id)
+
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	sessionId, err := s.Sm.Create(sessionUser, &Session{
 		Login:    cookieUserName.Value,
 		Password: cookiePassword.Value,
 	})
@@ -52,44 +81,46 @@ func (s *service) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TODO:: add token in cookie and expire time for session_id
 	cookie := http.Cookie{
 		Name:    "session_id",
 		Value:   sessionId.ID,
 		Expires: expiration,
 	}
-
 	http.SetCookie(w, &cookie)
-	w.Header().Set("session_id", sessionId.ID)
-	http.Redirect(w, r, "/book", http.StatusFound)
+	log.Println("log In")
+
+	w.Header().Set("Content-Type", "application/json")
+	if err != nil {
+		return
+	}
+	b, err := json.Marshal(&LoginResponse{
+		Message: "Log In",
+		Error:   err,
+	})
+	w.Write([]byte(b))
+	//http.Redirect(w, r, "/books", http.StatusFound)
 }
 
-//func (s *service) CheckSession(r *http.Request) (*Session, error) {
-//	cookieSessionID, err := r.Cookie("session_id")
-//	if err == http.ErrNoCookie {
-//		return nil, nil
-//	} else if err != nil {
-//		return nil, err
-//	}
-//
-//	session := s.Sm.Check(&SessionID{
-//		ID: cookieSessionID.Value,
-//	})
-//	return session, nil
-//}
-
-func (s *service) CheckSession(h http.Handler) http.Handler {
+func (s *service) CheckSession(h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cookieSessionID, err := r.Cookie("session_id")
 		if err == http.ErrNoCookie {
-			http.Redirect(w, r, "/login", http.StatusFound)
-			return
+			log.Println("No session_id", err)
+			s.Login(w, r)
 		} else if err != nil {
-			http.Redirect(w, r, "/login", http.StatusFound)
+			log.Println("Error cookie", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
-		if s.Sm.Check(&SessionID{ID: cookieSessionID.Value}) == nil {
-			http.Redirect(w, r, "/login", http.StatusFound)
+		ok, err := s.Sm.Check(&SessionID{ID: cookieSessionID.Value})
+		if err != nil {
+			log.Println("Error check session", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
+		}
+		if !ok {
+			s.Login(w, r)
 		}
 		h.ServeHTTP(w, r)
 	})

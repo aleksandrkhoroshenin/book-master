@@ -4,6 +4,7 @@ import (
 	"../src/books"
 	"../src/security"
 	"../src/transport"
+	"../src/users"
 	"database/sql"
 	"flag"
 	"fmt"
@@ -19,6 +20,7 @@ const (
 
 var (
 	booksService     books.HandlerBooks
+	userService      users.UserHandler
 	transportService transport.Router
 	securityService  security.Security
 )
@@ -47,11 +49,11 @@ func main() {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/login", securityService.Login)
-	mux.HandleFunc("/book", transportService.Handle)
-	mux.HandleFunc("/book/:uuid", transportService.Handle)
+	mux.HandleFunc("/books", securityService.CheckSession(transportService.Handle))
+	//mux.HandleFunc("/books/*", securityService.CheckSession(transportService.Handle))
 
-	handler := securityService.CheckSession(mux)
-	handler = AccessLogMiddleware(mux)
+	handler := AccessLogMiddleware(mux)
+	//handler = securityService.CheckSession(handler)
 
 	s := &http.Server{
 		Addr:           *httpAddr,
@@ -64,10 +66,11 @@ func main() {
 }
 
 func initService(db *sql.DB) {
-	sessionService := security.NewSessionManager()
+	sessionService := security.NewSessionManager(db)
 	booksService = books.CreateInstance(db)
-	transportService = transport.CreateInstance(sessionService)
-	securityService = security.CreateInstance(sessionService)
+	userService = users.CreateInstance(db)
+	transportService = transport.CreateInstance(sessionService, booksService)
+	securityService = security.CreateInstance(sessionService, userService)
 }
 
 func AccessLogMiddleware(next http.Handler) http.Handler {
@@ -76,6 +79,6 @@ func AccessLogMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		next.ServeHTTP(w, r)
 		fmt.Printf("[%s] %s, %s %s\n",
-			r.Method, r.RemoteAddr, r.URL.Path, time.Since(start))
+			w.Header(), r.Method, r.RemoteAddr, r.URL.Path, time.Since(start))
 	})
 }
