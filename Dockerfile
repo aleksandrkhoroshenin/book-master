@@ -7,7 +7,7 @@ COPY . /go/app
 RUN go get github.com/satori/go.uuid
 RUN go get github.com/lib/pq
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /go/app/book-master-api /go/app/src/book-master-api.go
-EXPOSE 8080
+
 FROM base
 COPY --from=go-builder /go/app/book-master-api /book-master-api
 CMD ["/book-master-api"]

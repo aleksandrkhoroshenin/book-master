@@ -31,6 +31,7 @@ var httpAddr = flag.String("http.addr", ":8080", "HTTP listen address")
 func main() {
 	flag.Parse()
 
+	// TODO:: add timeout for docker
 	dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable",
 		"postgres", "Aebnm", "db_1")
 	db, err := sql.Open("postgres", dbInfo)
@@ -79,6 +80,6 @@ func AccessLogMiddleware(next http.Handler) http.Handler {
 		start := time.Now()
 		next.ServeHTTP(w, r)
 		fmt.Printf("[%s] %s, %s %s\n",
-			w.Header(), r.Method, r.RemoteAddr, r.URL.Path, time.Since(start))
+			r.Method, r.RemoteAddr, r.URL.Path, time.Since(start))
 	})
 }

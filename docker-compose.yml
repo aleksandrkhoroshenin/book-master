@@ -5,6 +5,19 @@ services:
     build:
       context: .
       args:
-        - VER=1.2
+        - VER=1.0
     ports:
       - 8080:8080
+    restart: on-failure
+    
+  postgres:
+    image: postgres:latest
+    restart: always
+    volumes:
+      - ./sql/create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql
+    environment:
+      POSTGRES_DB: db_1
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Aebnm
+    ports:
+      - "8001:5432"
