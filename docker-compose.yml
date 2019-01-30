@@ -1,5 +1,8 @@
 version: '3'
 
+networks:
+  hohoho:
+
 services:
   books-api:
     build:
@@ -7,12 +10,17 @@ services:
       args:
         - VER=1.0
     ports:
-      - 8080:8080
+      - "8080:8080"
     restart: on-failure
-    
+    depends_on:
+      - postgres
+    networks:
+      - hohoho
+
+
   postgres:
     image: postgres:latest
-    restart: always
+    restart: on-failure
     volumes:
       - ./sql/create_tables.sql:/docker-entrypoint-initdb.d/create_tables.sql
     environment:
@@ -21,3 +29,6 @@ services:
       POSTGRES_PASSWORD: Aebnm
     ports:
       - "8001:5432"
+    networks:
+      - hohoho
+

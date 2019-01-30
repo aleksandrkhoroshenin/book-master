@@ -32,8 +32,7 @@ func main() {
 	flag.Parse()
 
 	// TODO:: add timeout for docker
-	dbInfo := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable",
-		"postgres", "Aebnm", "db_1")
+	dbInfo := "postgres://postgres:Aebnm@postgres:5432/db_1?sslmode=disable"
 	db, err := sql.Open("postgres", dbInfo)
 	if err != nil {
 		log.Fatal(err)
