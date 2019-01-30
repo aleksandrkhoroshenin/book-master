@@ -2,6 +2,7 @@ package transport
 
 import (
 	"../books"
+	"../errors"
 	"../security"
 	"../utils"
 	"encoding/json"
@@ -16,10 +17,8 @@ type FetchResult struct {
 	Items []*books.Books `json:"items"`
 }
 
-// Описание структуры ответа при ошибке
-type ErrorResponse struct {
+type SuccessResponse struct {
 	Message string `json:"message"`
-	Error   error  `json:"error"`
 }
 
 type Router interface {
@@ -67,7 +66,7 @@ func (s *HttpHandler) Get(w http.ResponseWriter, req *http.Request) {
 func (s *HttpHandler) fetchListBooks(w http.ResponseWriter) error {
 	books, count, err := s.Books.GetBooks()
 	if err != nil {
-		ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
+		errors.ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
 		return err
 	}
 	b, _ := json.Marshal(&FetchResult{
@@ -84,7 +83,7 @@ func (s *HttpHandler) fetchOneBook(id string, w http.ResponseWriter) error {
 	book := &books.Books{}
 	book, _, err := s.Books.GetBook(id)
 	if err != nil {
-		ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
+		errors.ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
 		return err
 	}
 	b, _ := json.Marshal(&book)
@@ -98,17 +97,17 @@ func (s *HttpHandler) Post(w http.ResponseWriter, req *http.Request) {
 	book := &books.Books{}
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		ErrorHandler(w, "Body read error", http.StatusInternalServerError, err)
+		errors.ErrorHandler(w, "Body read error", http.StatusInternalServerError, err)
 		return
 	}
 	err = json.Unmarshal(body, book)
 	if err != nil {
-		ErrorHandler(w, "unmarshal error", http.StatusInternalServerError, err)
+		errors.ErrorHandler(w, "unmarshal error", http.StatusInternalServerError, err)
 		return
 	}
 
 	if !book.IsValid() {
-		ErrorHandler(w, "Not valid data", http.StatusBadRequest, nil)
+		errors.ErrorHandler(w, "Not valid data", http.StatusBadRequest, nil)
 		return
 	}
 
@@ -117,7 +116,7 @@ func (s *HttpHandler) Post(w http.ResponseWriter, req *http.Request) {
 	err = s.Books.AddBooks(book)
 
 	if err != nil {
-		ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
+		errors.ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
 		return
 	}
 	b, _ := json.Marshal(&book)
@@ -130,24 +129,24 @@ func (s *HttpHandler) Patch(w http.ResponseWriter, req *http.Request) {
 	book := &books.Books{}
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		ErrorHandler(w, "Body read error", http.StatusInternalServerError, err)
+		errors.ErrorHandler(w, "Body read error", http.StatusInternalServerError, err)
 		return
 	}
 	err = json.Unmarshal(body, book)
 	if err != nil {
-		ErrorHandler(w, "unmarshal error", http.StatusInternalServerError, err)
+		errors.ErrorHandler(w, "unmarshal error", http.StatusInternalServerError, err)
 		return
 	}
 
 	if !book.IsValid() {
-		ErrorHandler(w, "Not valid data", http.StatusBadRequest, nil)
+		errors.ErrorHandler(w, "Not valid data", http.StatusBadRequest, nil)
 		return
 	}
 
 	bookFromDB, count, err := s.Books.GetBook(book.Id)
 
 	if err != nil || count == 0 {
-		ErrorHandler(w, "Record not found", http.StatusNotFound, err)
+		errors.ErrorHandler(w, "Record not found", http.StatusNotFound, err)
 		return
 	}
 	if book.Name == "" {
@@ -161,7 +160,7 @@ func (s *HttpHandler) Patch(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if err = s.Books.EditBooks(book); err != nil {
-		ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
+		errors.ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
 		return
 	}
 	b, _ := json.Marshal(&book)
@@ -174,22 +173,12 @@ func (s *HttpHandler) Delete(w http.ResponseWriter, req *http.Request) {
 	id := req.URL.Query().Get("id")
 	err := s.Books.DeleteBooks(id)
 	if err != nil {
-		ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
+		errors.ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
 		return
 	}
-	b, _ := json.Marshal(ErrorResponse{Message: id + " delete successful"})
+	b, _ := json.Marshal(SuccessResponse{Message: id + " delete successful"})
 	w.Write([]byte(b))
 	w.WriteHeader(http.StatusOK)
-}
-
-// TODO::remove to error class
-func ErrorHandler(w http.ResponseWriter, message string, status int, err error) {
-	b, _ := json.Marshal(&ErrorResponse{
-		Message: message,
-		Error:   err,
-	})
-	w.Write([]byte(b))
-	w.WriteHeader(status)
 }
 
 // Http Handle
