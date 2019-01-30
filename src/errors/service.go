@@ -8,13 +8,17 @@ import (
 // Описание структуры ответа при ошибке
 type ErrorResponse struct {
 	Message string `json:"message"`
-	Error   error  `json:"error"`
+	Error   string `json:"error"`
 }
 
 func ErrorHandler(w http.ResponseWriter, message string, status int, err error) {
+	errorMessage := "Error!"
+	if err != nil {
+		errorMessage = err.Error()
+	}
 	b, _ := json.Marshal(&ErrorResponse{
 		Message: message,
-		Error:   err,
+		Error:   errorMessage,
 	})
 	w.Write([]byte(b))
 	w.WriteHeader(status)
