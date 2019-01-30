@@ -67,7 +67,7 @@ func (s *HttpHandler) Get(w http.ResponseWriter, req *http.Request) {
 func (s *HttpHandler) fetchListBooks(w http.ResponseWriter) error {
 	books, count, err := s.Books.GetBooks()
 	if err != nil {
-		s.errorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
+		ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
 		return err
 	}
 	b, _ := json.Marshal(&FetchResult{
@@ -84,7 +84,7 @@ func (s *HttpHandler) fetchOneBook(id string, w http.ResponseWriter) error {
 	book := &books.Books{}
 	book, _, err := s.Books.GetBook(id)
 	if err != nil {
-		s.errorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
+		ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
 		return err
 	}
 	b, _ := json.Marshal(&book)
@@ -98,17 +98,17 @@ func (s *HttpHandler) Post(w http.ResponseWriter, req *http.Request) {
 	book := &books.Books{}
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		s.errorHandler(w, "Body read error", http.StatusInternalServerError, err)
+		ErrorHandler(w, "Body read error", http.StatusInternalServerError, err)
 		return
 	}
 	err = json.Unmarshal(body, book)
 	if err != nil {
-		s.errorHandler(w, "unmarshal error", http.StatusInternalServerError, err)
+		ErrorHandler(w, "unmarshal error", http.StatusInternalServerError, err)
 		return
 	}
 
 	if !book.IsValid() {
-		s.errorHandler(w, "Not valid data", http.StatusBadRequest, nil)
+		ErrorHandler(w, "Not valid data", http.StatusBadRequest, nil)
 		return
 	}
 
@@ -117,7 +117,7 @@ func (s *HttpHandler) Post(w http.ResponseWriter, req *http.Request) {
 	err = s.Books.AddBooks(book)
 
 	if err != nil {
-		s.errorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
+		ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
 		return
 	}
 	b, _ := json.Marshal(&book)
@@ -130,24 +130,24 @@ func (s *HttpHandler) Patch(w http.ResponseWriter, req *http.Request) {
 	book := &books.Books{}
 	body, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		s.errorHandler(w, "Body read error", http.StatusInternalServerError, err)
+		ErrorHandler(w, "Body read error", http.StatusInternalServerError, err)
 		return
 	}
 	err = json.Unmarshal(body, book)
 	if err != nil {
-		s.errorHandler(w, "unmarshal error", http.StatusInternalServerError, err)
+		ErrorHandler(w, "unmarshal error", http.StatusInternalServerError, err)
 		return
 	}
 
 	if !book.IsValid() {
-		s.errorHandler(w, "Not valid data", http.StatusBadRequest, nil)
+		ErrorHandler(w, "Not valid data", http.StatusBadRequest, nil)
 		return
 	}
 
 	bookFromDB, count, err := s.Books.GetBook(book.Id)
 
 	if err != nil || count == 0 {
-		s.errorHandler(w, "Record not found", http.StatusNotFound, err)
+		ErrorHandler(w, "Record not found", http.StatusNotFound, err)
 		return
 	}
 	if book.Name == "" {
@@ -161,7 +161,7 @@ func (s *HttpHandler) Patch(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if err = s.Books.EditBooks(book); err != nil {
-		s.errorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
+		ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
 		return
 	}
 	b, _ := json.Marshal(&book)
@@ -174,7 +174,7 @@ func (s *HttpHandler) Delete(w http.ResponseWriter, req *http.Request) {
 	id := req.URL.Query().Get("id")
 	err := s.Books.DeleteBooks(id)
 	if err != nil {
-		s.errorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
+		ErrorHandler(w, "Internal Server Error", http.StatusInternalServerError, err)
 		return
 	}
 	b, _ := json.Marshal(ErrorResponse{Message: id + " delete successful"})
@@ -182,7 +182,8 @@ func (s *HttpHandler) Delete(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (s *HttpHandler) errorHandler(w http.ResponseWriter, message string, status int, err error) {
+// TODO::remove to error class
+func ErrorHandler(w http.ResponseWriter, message string, status int, err error) {
 	b, _ := json.Marshal(&ErrorResponse{
 		Message: message,
 		Error:   err,

@@ -1,6 +1,7 @@
 package security
 
 import (
+	"../transport"
 	"../users"
 	"../utils"
 	"encoding/json"
@@ -36,19 +37,19 @@ func (s *service) Login(w http.ResponseWriter, r *http.Request) {
 
 	cookieUserName, err := r.Cookie("username")
 	if err == http.ErrNoCookie {
-		http.Error(w, "Access denied, username is not found", http.StatusUnauthorized)
+		transport.ErrorHandler(w, "Access denied, username is not found", http.StatusUnauthorized, err)
 		return
 	} else if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		transport.ErrorHandler(w, "Get cookies error", http.StatusInternalServerError, err)
 		return
 	}
 
 	cookiePassword, err := r.Cookie("password")
 	if err == http.ErrNoCookie {
-		http.Error(w, "Access denied, password is not found", http.StatusUnauthorized)
+		transport.ErrorHandler(w, "Access denied, password is not found", http.StatusUnauthorized, err)
 		return
 	} else if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		transport.ErrorHandler(w, "Get cookies error", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -60,14 +61,14 @@ func (s *service) Login(w http.ResponseWriter, r *http.Request) {
 	err = s.Users.PutUser(user)
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		transport.ErrorHandler(w, "Put User error", http.StatusInternalServerError, err)
 		return
 	}
 
 	sessionUser, err := s.Users.GetUser(user.Id)
 
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		transport.ErrorHandler(w, "Get user error", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -77,7 +78,7 @@ func (s *service) Login(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		transport.ErrorHandler(w, "Create error", http.StatusInternalServerError, err)
 		return
 	}
 
@@ -91,9 +92,7 @@ func (s *service) Login(w http.ResponseWriter, r *http.Request) {
 	log.Println("log In")
 
 	w.Header().Set("Content-Type", "application/json")
-	if err != nil {
-		return
-	}
+
 	b, err := json.Marshal(&LoginResponse{
 		Message: "Log In",
 		Error:   err,
@@ -110,13 +109,13 @@ func (s *service) CheckSession(h http.HandlerFunc) http.HandlerFunc {
 			s.Login(w, r)
 		} else if err != nil {
 			log.Println("Error cookie", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			transport.ErrorHandler(w, "Error cookie", http.StatusUnauthorized, err)
 			return
 		}
 		ok, err := s.Sm.Check(&SessionID{ID: cookieSessionID.Value})
 		if err != nil {
 			log.Println("Error check session", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			transport.ErrorHandler(w, "Error check session", http.StatusUnauthorized, err)
 			return
 		}
 		if !ok {
